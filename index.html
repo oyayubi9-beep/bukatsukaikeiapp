@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2c3e50">
+<title>部活会計入力</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>部活会計入力</h1>
+  <button id="signoutBtn" class="ghost-btn hidden">ログアウト</button>
+</header>
+
+<!-- ログイン画面 -->
+<section id="loginView" class="screen">
+  <div class="login-card">
+    <p class="login-lead">会計担当のGoogleアカウントでログインしてください</p>
+    <button id="signinBtn" class="primary-btn">Googleでログイン</button>
+    <p id="loginError" class="error-text"></p>
+  </div>
+</section>
+
+<!-- メイン画面 -->
+<main id="mainView" class="screen hidden">
+
+  <nav class="tabbar">
+    <button class="tab-btn active" data-tab="ledger">仕訳入力</button>
+    <button class="tab-btn" data-tab="dues">部費入金</button>
+    <button class="tab-btn" data-tab="special">上位大会</button>
+  </nav>
+
+  <!-- タブ1: 一般会計 仕訳入力 -->
+  <section id="tab-ledger" class="tab-panel active">
+    <form id="ledgerForm" class="entry-form">
+      <label>日付
+        <input type="date" id="l_date" required>
+      </label>
+
+      <label>摘要（内容）
+        <input type="text" id="l_memo" placeholder="例：教則本3冊" required>
+      </label>
+
+      <label>分類
+        <select id="l_category" required></select>
+      </label>
+
+      <fieldset class="money-fieldset">
+        <legend>収入・支出・振替</legend>
+        <div class="seg-control" id="l_kind">
+          <button type="button" class="seg-btn active" data-kind="income">収入</button>
+          <button type="button" class="seg-btn" data-kind="expense">支出</button>
+          <button type="button" class="seg-btn" data-kind="transfer">振替（現金⇔口座）</button>
+        </div>
+
+        <div id="l_incomeBlock">
+          <label>収入科目
+            <select id="l_incomeAccount"></select>
+          </label>
+          <label>収入金額（円）
+            <input type="number" id="l_incomeAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+
+        <div id="l_expenseBlock" class="hidden">
+          <label>支出科目
+            <select id="l_expenseAccount"></select>
+          </label>
+          <label>支出金額（円）
+            <input type="number" id="l_expenseAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+
+        <div id="l_transferBlock" class="hidden">
+          <label>振替方向
+            <select id="l_transferDir">
+              <option value="現金→口座">現金 → 口座</option>
+              <option value="口座→現金">口座 → 現金</option>
+            </select>
+          </label>
+          <label>振替金額（円）
+            <input type="number" id="l_transferAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+      </fieldset>
+
+      <label id="l_payLabel">支払手段
+        <select id="l_payment" required></select>
+      </label>
+
+      <label>領収書（任意）
+        <input type="file" id="l_receipt" accept="image/*" capture="environment">
+        <span id="l_receiptName" class="file-hint"></span>
+      </label>
+
+      <label>備考（任意）
+        <input type="text" id="l_note">
+      </label>
+
+      <button type="submit" class="primary-btn">記録する</button>
+      <p id="l_status" class="status-text"></p>
+    </form>
+  </section>
+
+  <!-- タブ2: 部費入金記録 -->
+  <section id="tab-dues" class="tab-panel">
+    <form id="duesForm" class="entry-form">
+      <label>部員
+        <select id="d_member" required></select>
+      </label>
+      <label>対象月
+        <select id="d_month" required></select>
+      </label>
+      <label>状態
+        <div class="seg-control" id="d_status">
+          <button type="button" class="seg-btn active" data-status="○">支払済み（○）</button>
+          <button type="button" class="seg-btn" data-status="×">未払い（×）</button>
+          <button type="button" class="seg-btn" data-status="－">免除（－）</button>
+        </div>
+      </label>
+      <button type="submit" class="primary-btn">記録する</button>
+      <p id="d_status_msg" class="status-text"></p>
+    </form>
+  </section>
+
+  <!-- タブ3: 上位大会特別会計 -->
+  <section id="tab-special" class="tab-panel">
+    <form id="specialForm" class="entry-form">
+      <label>大会（特別会計シート）
+        <select id="s_sheet" required></select>
+      </label>
+
+      <label>日付
+        <input type="date" id="s_date" required>
+      </label>
+
+      <label>摘要（内容）
+        <input type="text" id="s_memo" required>
+      </label>
+
+      <fieldset class="money-fieldset">
+        <legend>収入・支出・振替</legend>
+        <div class="seg-control" id="s_kind">
+          <button type="button" class="seg-btn active" data-kind="income">収入</button>
+          <button type="button" class="seg-btn" data-kind="expense">支出</button>
+          <button type="button" class="seg-btn" data-kind="transfer">振替（現金⇔口座）</button>
+        </div>
+
+        <div id="s_incomeBlock">
+          <label>収入科目
+            <select id="s_incomeAccount"></select>
+          </label>
+          <label>収入金額（円）
+            <input type="number" id="s_incomeAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+
+        <div id="s_expenseBlock" class="hidden">
+          <label>支出科目
+            <select id="s_expenseAccount"></select>
+          </label>
+          <label>支出金額（円）
+            <input type="number" id="s_expenseAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+
+        <div id="s_transferBlock" class="hidden">
+          <label>振替方向
+            <select id="s_transferDir">
+              <option value="現金→口座">現金 → 口座</option>
+              <option value="口座→現金">口座 → 現金</option>
+            </select>
+          </label>
+          <label>振替金額（円）
+            <input type="number" id="s_transferAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+      </fieldset>
+
+      <label id="s_payLabel">支払手段
+        <select id="s_payment" required></select>
+      </label>
+
+      <label>領収書（任意）
+        <input type="file" id="s_receipt" accept="image/*" capture="environment">
+        <span id="s_receiptName" class="file-hint"></span>
+      </label>
+
+      <label>備考（任意）
+        <input type="text" id="s_note">
+      </label>
+
+      <button type="submit" class="primary-btn">記録する</button>
+      <p id="s_status" class="status-text"></p>
+    </form>
+  </section>
+
+</main>
+
+<div id="toast" class="toast hidden"></div>
+
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
