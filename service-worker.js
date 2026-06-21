@@ -1,7 +1,11 @@
 // シンプルなアプリシェルキャッシュ。
 // データはGoogle API経由なのでキャッシュせず、見た目（HTML/CSS/JS）だけ
 // 高速表示・最低限のオフライン起動に対応させる。
-const CACHE_NAME = "bukatsu-kaikei-v1";
+//
+// 【重要】index.html / app.js / config.js などを更新するたびに、
+// このCACHE_NAMEの数字を1つ増やしてください（v2 → v3 など）。
+// 増やさないと、スマホ側で古い内容がキャッシュされ続けて反映されません。
+const CACHE_NAME = "bukatsu-kaikei-v2";
 const SHELL_FILES = [
   "./index.html",
   "./style.css",
@@ -26,6 +30,8 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+// ネットワーク優先：まず最新を取りに行き、取れたらキャッシュも更新する。
+// オフラインなど取得に失敗したときだけ、キャッシュ済みの内容を表示する。
 self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   // Google APIへのリクエストは素通しする（キャッシュしない）
@@ -33,6 +39,12 @@ self.addEventListener("fetch", (event) => {
     return;
   }
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
