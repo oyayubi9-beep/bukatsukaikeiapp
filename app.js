@@ -12,6 +12,7 @@ let tokenClient = null;
 let masterData = { categories: [], incomeAccounts: [], expenseAccounts: [], paymentMethods: [] };
 let rosterData = []; // [{name, row}]
 let specialSheetNames = [];
+let sheetIdCache = null;
 
 // --------------------------------------------------------------------
 // 認証
@@ -88,6 +89,18 @@ async function authedFetch(url, options = {}) {
 
 const SHEETS_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
+// アプリが書き込んでよい列の定義。formula列はここに絶対含めない。
+const SHEET_COLUMNS = {
+  ledger: {
+    editable: ["A","B","C","D","E","F","G","H","I","L","M"], // J,K は数式列
+    formula:  ["J","K"],
+  },
+  special: {
+    editable: ["A","B","C","D","E","F","G","H","K","L"], // I,J は数式列
+    formula:  ["I","J"],
+  },
+};
+
 async function sheetsGetValues(range) {
   const url = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}`;
   const res = await authedFetch(url);
@@ -117,6 +130,19 @@ async function getSpreadsheetSheetTitles() {
   if (!res.ok) throw new Error("sheets meta failed: " + (await res.text()));
   const data = await res.json();
   return (data.sheets || []).map((s) => s.properties.title);
+}
+
+async function getSheetIds() {
+  if (sheetIdCache) return sheetIdCache;
+  const url = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}?fields=sheets.properties(sheetId,title)`;
+  const res = await authedFetch(url);
+  if (!res.ok) throw new Error("sheets meta failed: " + (await res.text()));
+  const data = await res.json();
+  sheetIdCache = {};
+  for (const s of (data.sheets || [])) {
+    sheetIdCache[s.properties.title] = s.properties.sheetId;
+  }
+  return sheetIdCache;
 }
 
 // 指定列(A列など)を上から読み、最初の空欄の行番号を返す
@@ -994,26 +1020,64 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
   }
 });
 
+// SHEET_COLUMNS.editable を連続列ごとにグループ化してbatchUpdate用レンジ配列を返す
+function buildClearRanges(sheetRef, rowNum, cols) {
+  const sorted = [...cols].sort((a, b) => colIndexFromLetter(a) - colIndexFromLetter(b));
+  const groups = [];
+  let start = sorted[0], prev = sorted[0];
+  for (let i = 1; i < sorted.length; i++) {
+    const cur = sorted[i];
+    if (colIndexFromLetter(cur) === colIndexFromLetter(prev) + 1) {
+      prev = cur;
+    } else {
+      groups.push([start, prev]);
+      start = cur; prev = cur;
+    }
+  }
+  groups.push([start, prev]);
+  return groups.map(([s, e]) => ({
+    range: `${sheetRef}!${s}${rowNum}:${e}${rowNum}`,
+    values: [new Array(colIndexFromLetter(e) - colIndexFromLetter(s) + 1).fill("")],
+  }));
+}
+
+// 数式列が空になっていたら1つ上の行からCopyPasteで復元する
+async function restoreFormulaColumns(sheetName, rowNum, formulaCols) {
+  if (formulaCols.length === 0 || rowNum <= CONFIG.LEDGER_FIRST_ROW) return;
+  const sheetRef = `'${sheetName}'`;
+  const first = formulaCols[0];
+  const last = formulaCols[formulaCols.length - 1];
+  const cur = await sheetsGetValues(`${sheetRef}!${first}${rowNum}:${last}${rowNum}`);
+  const curRow = cur[0] || [];
+  const needsRestore = formulaCols.some((_, i) => !curRow[i] || String(curRow[i]).trim() === "");
+  if (!needsRestore) return;
+  const sheetIds = await getSheetIds();
+  const sheetId = sheetIds[sheetName];
+  if (sheetId == null) return;
+  const startColIdx = colIndexFromLetter(first);
+  const endColIdx   = colIndexFromLetter(last) + 1;
+  const url = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}:batchUpdate`;
+  const res = await authedFetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ requests: [{ copyPaste: {
+      source:      { sheetId, startRowIndex: rowNum - 2, endRowIndex: rowNum - 1, startColumnIndex: startColIdx, endColumnIndex: endColIdx },
+      destination: { sheetId, startRowIndex: rowNum - 1, endRowIndex: rowNum,     startColumnIndex: startColIdx, endColumnIndex: endColIdx },
+      pasteType: "PASTE_FORMULA",
+      pasteOrientation: "NORMAL",
+    }}]}),
+  });
+  if (!res.ok) throw new Error("formula restore failed: " + (await res.text()));
+}
+
 // 削除
 async function deleteRecord(type, sheet, rowNum) {
   if (!confirm("この記録を削除しますか？元に戻せません。")) return;
-
   try {
-    if (type === "ledger") {
-      await sheetsBatchUpdateValues([
-        { range: `'${CONFIG.SHEET_LEDGER}'!A${rowNum}:I${rowNum}`,
-          values: [["", "", "", "", "", "", "", "", ""]] },
-        { range: `'${CONFIG.SHEET_LEDGER}'!L${rowNum}:M${rowNum}`,
-          values: [["", ""]] },
-      ]);
-    } else {
-      await sheetsBatchUpdateValues([
-        { range: `'${sheet}'!A${rowNum}:H${rowNum}`,
-          values: [["", "", "", "", "", "", "", ""]] },
-        { range: `'${sheet}'!K${rowNum}:L${rowNum}`,
-          values: [["", ""]] },
-      ]);
-    }
+    const sheetName = type === "ledger" ? CONFIG.SHEET_LEDGER : sheet;
+    const cols = SHEET_COLUMNS[type];
+    await sheetsBatchUpdateValues(buildClearRanges(`'${sheetName}'`, rowNum, cols.editable));
+    await restoreFormulaColumns(sheetName, rowNum, cols.formula);
     toast("記録を削除しました");
     await loadEditListData();
   } catch (err) {
