@@ -109,6 +109,15 @@ async function sheetsGetValues(range) {
   return data.values || [];
 }
 
+// 計算結果でなく数式テキストを取得する（=IF(...)のような数式が消えていないか確認するために使う）
+async function sheetsGetFormulas(range) {
+  const url = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueRenderOption=FORMULA`;
+  const res = await authedFetch(url);
+  if (!res.ok) throw new Error("sheets get formulas failed: " + (await res.text()));
+  const data = await res.json();
+  return data.values || [];
+}
+
 async function sheetsBatchUpdateValues(valueRanges) {
   const url = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}/values:batchUpdate`;
   const body = {
@@ -1047,7 +1056,8 @@ async function restoreFormulaColumns(sheetName, rowNum, formulaCols) {
   const sheetRef = `'${sheetName}'`;
   const first = formulaCols[0];
   const last = formulaCols[formulaCols.length - 1];
-  const cur = await sheetsGetValues(`${sheetRef}!${first}${rowNum}:${last}${rowNum}`);
+  // 計算結果ではなく数式テキストで判定する（計算結果が""でも数式があれば復元不要）
+  const cur = await sheetsGetFormulas(`${sheetRef}!${first}${rowNum}:${last}${rowNum}`);
   const curRow = cur[0] || [];
   const needsRestore = formulaCols.some((_, i) => !curRow[i] || String(curRow[i]).trim() === "");
   if (!needsRestore) return;
