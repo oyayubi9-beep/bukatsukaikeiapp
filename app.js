@@ -60,6 +60,7 @@ async function onSignedIn() {
     setDefaultDates();
     toast("準備ができました");
     document.getElementById("modeSelectView").classList.remove("hidden");
+    checkPendingUploads();
   } catch (e) {
     console.error(e);
     toast("データの読み込みに失敗しました。再読み込みしてください。", true);
@@ -390,6 +391,7 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const statusEl = document.getElementById("l_status");
   statusEl.textContent = "記録しています…";
+  let pendingId = null;
 
   try {
     const date = document.getElementById("l_date").value;
@@ -436,7 +438,11 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
       const folderId = await driveFindOrCreateMonthFolder(yyyyMM);
       const safeAccount = (accountForFilename || "未分類").replace(/[\\/:*?"<>|]/g, "_");
       const filename = `${date}_${safeAccount}_${amountForFilename || 0}.jpg`;
-      const uploaded = await driveUploadReceipt(file, folderId, filename);
+      const compressed = await compressImage(file);
+      const receiptRange = `'${CONFIG.SHEET_LEDGER}'!L${row}`;
+      try { pendingId = await savePendingUpload({ compressedBlob: compressed, folderId, filename, receiptRange }); } catch (_) {}
+      showUploadOverlay();
+      const uploaded = await driveUploadReceipt(compressed, folderId, filename);
       receiptLink = uploaded.webViewLink || "";
     }
 
@@ -452,6 +458,7 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
       { range: `'${CONFIG.SHEET_LEDGER}'!L${row}:M${row}`, values: [rowL_M] },
     ]);
     await copyFormulaFromRowAbove(CONFIG.SHEET_LEDGER, row, SHEET_COLUMNS.ledger.formula);
+    if (pendingId != null) { try { await deletePendingUpload(pendingId); } catch (_) {} }
 
     statusEl.textContent = "記録しました。";
     toast("一般会計に記録しました");
@@ -462,6 +469,8 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
     console.error(err);
     statusEl.textContent = "エラーが発生しました。もう一度お試しください。";
     toast("記録に失敗しました", true);
+  } finally {
+    hideUploadOverlay();
   }
 });
 
@@ -531,6 +540,7 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const statusEl = document.getElementById("s_status");
   statusEl.textContent = "記録しています…";
+  let pendingId = null;
 
   try {
     const sheetName = document.getElementById("s_sheet").value;
@@ -576,7 +586,11 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
       const safeSheet = sheetName.replace(/[\\/:*?"<>|]/g, "_");
       const safeAccount = (accountForFilename || "未分類").replace(/[\\/:*?"<>|]/g, "_");
       const filename = `${safeSheet}_${date}_${safeAccount}_${amountForFilename || 0}.jpg`;
-      const uploaded = await driveUploadReceipt(file, folderId, filename);
+      const compressed = await compressImage(file);
+      const receiptRange = `'${sheetName}'!L${row}`;
+      try { pendingId = await savePendingUpload({ compressedBlob: compressed, folderId, filename, receiptRange }); } catch (_) {}
+      showUploadOverlay();
+      const uploaded = await driveUploadReceipt(compressed, folderId, filename);
       receiptLink = uploaded.webViewLink || "";
     }
 
@@ -592,6 +606,7 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
       { range: `'${sheetName}'!K${row}:L${row}`, values: [rowK_L] },
     ]);
     await copyFormulaFromRowAbove(sheetName, row, SHEET_COLUMNS.special.formula);
+    if (pendingId != null) { try { await deletePendingUpload(pendingId); } catch (_) {} }
 
     statusEl.textContent = "記録しました。";
     toast(`${sheetName}に記録しました`);
@@ -602,6 +617,8 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
     console.error(err);
     statusEl.textContent = "エラーが発生しました。もう一度お試しください。";
     toast("記録に失敗しました", true);
+  } finally {
+    hideUploadOverlay();
   }
 });
 
@@ -824,6 +841,7 @@ document.getElementById("rr_uploadBtn").addEventListener("click", async () => {
 
   statusEl.textContent = "アップロード中…";
   document.getElementById("rr_uploadBtn").disabled = true;
+  let pendingId = null;
 
   try {
     const date = document.getElementById("receiptReplaceModal").dataset.date
@@ -831,14 +849,17 @@ document.getElementById("rr_uploadBtn").addEventListener("click", async () => {
     const yyyyMM = date.slice(0, 7);
     const folderId = await driveFindOrCreateMonthFolder(yyyyMM);
     const filename = `receipt_${date}_row${editTargetRowNum}.jpg`;
-    const uploaded = await driveUploadReceipt(file, folderId, filename);
-    const receiptLink = uploaded.webViewLink || "";
-
-    const range = editTargetType === "ledger"
+    const compressed = await compressImage(file);
+    const receiptRange = editTargetType === "ledger"
       ? `'${CONFIG.SHEET_LEDGER}'!L${editTargetRowNum}`
       : `'${editTargetSheet}'!L${editTargetRowNum}`;
+    try { pendingId = await savePendingUpload({ compressedBlob: compressed, folderId, filename, receiptRange }); } catch (_) {}
+    showUploadOverlay();
+    const uploaded = await driveUploadReceipt(compressed, folderId, filename);
+    const receiptLink = uploaded.webViewLink || "";
 
-    await sheetsBatchUpdateValues([{ range, values: [[receiptLink]] }]);
+    await sheetsBatchUpdateValues([{ range: receiptRange, values: [[receiptLink]] }]);
+    if (pendingId != null) { try { await deletePendingUpload(pendingId); } catch (_) {} }
 
     toast("領収書を更新しました");
     document.getElementById("receiptReplaceModal").classList.add("hidden");
@@ -849,6 +870,7 @@ document.getElementById("rr_uploadBtn").addEventListener("click", async () => {
     toast("更新に失敗しました", true);
   } finally {
     document.getElementById("rr_uploadBtn").disabled = false;
+    hideUploadOverlay();
   }
 });
 
@@ -955,6 +977,7 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
   const type = editTargetType;
   const sheet = editTargetSheet;
   const rowNum = editTargetRowNum;
+  let pendingId = null;
 
   try {
     const date = document.getElementById("e_date").value;
@@ -997,7 +1020,13 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
       const safeAccount = (accountForFilename || "未分類").replace(/[\\/:*?"<>|]/g, "_");
       const safeSheet = type === "special" ? sheet.replace(/[\\/:*?"<>|]/g, "_") + "_" : "";
       const filename = `${safeSheet}${date}_${safeAccount}_${amountForFilename || 0}.jpg`;
-      const uploaded = await driveUploadReceipt(file, folderId, filename);
+      const compressed = await compressImage(file);
+      const receiptRange = type === "ledger"
+        ? `'${CONFIG.SHEET_LEDGER}'!L${rowNum}`
+        : `'${sheet}'!L${rowNum}`;
+      try { pendingId = await savePendingUpload({ compressedBlob: compressed, folderId, filename, receiptRange }); } catch (_) {}
+      showUploadOverlay();
+      const uploaded = await driveUploadReceipt(compressed, folderId, filename);
       receiptLink = uploaded.webViewLink || "";
     }
 
@@ -1019,6 +1048,7 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
           values: [[note, receiptLink]] },
       ]);
     }
+    if (pendingId != null) { try { await deletePendingUpload(pendingId); } catch (_) {} }
 
     statusEl.textContent = "保存しました。";
     toast("修正しました");
@@ -1028,6 +1058,8 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
     console.error(err);
     statusEl.textContent = "エラーが発生しました。もう一度お試しください。";
     toast("保存に失敗しました", true);
+  } finally {
+    hideUploadOverlay();
   }
 });
 
@@ -1115,6 +1147,143 @@ async function deleteRecord(type, sheet, rowNum) {
 }
 
 wireKindSegment("e");
+
+// --------------------------------------------------------------------
+// 画像圧縮（Canvas API）
+// --------------------------------------------------------------------
+
+function compressImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const MAX = 1600;
+      let w = img.naturalWidth, h = img.naturalHeight;
+      if (w > MAX || h > MAX) {
+        if (w >= h) { h = Math.round(h * MAX / w); w = MAX; }
+        else        { w = Math.round(w * MAX / h); h = MAX; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob(
+        (blob) => blob ? resolve(blob) : reject(new Error("compress failed")),
+        "image/jpeg", 0.75
+      );
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("image load failed")); };
+    img.src = url;
+  });
+}
+
+// --------------------------------------------------------------------
+// IndexedDB：未完了アップロードの一時保存
+// --------------------------------------------------------------------
+
+const IDB_NAME = "bukatsu-upload-pending";
+const IDB_STORE = "pending";
+
+function openPendingDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = (e) => {
+      e.target.result.createObjectStore(IDB_STORE, { keyPath: "id", autoIncrement: true });
+    };
+    req.onsuccess = (e) => resolve(e.target.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function savePendingUpload(data) {
+  const db = await openPendingDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    const req = tx.objectStore(IDB_STORE).add({ ...data, savedAt: Date.now() });
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deletePendingUpload(id) {
+  const db = await openPendingDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readwrite");
+    const req = tx.objectStore(IDB_STORE).delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function getAllPendingUploads() {
+  const db = await openPendingDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(IDB_STORE, "readonly");
+    const req = tx.objectStore(IDB_STORE).getAll();
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+// --------------------------------------------------------------------
+// アップロード中オーバーレイ
+// --------------------------------------------------------------------
+
+function showUploadOverlay() {
+  document.getElementById("uploadOverlay").classList.remove("hidden");
+}
+function hideUploadOverlay() {
+  document.getElementById("uploadOverlay").classList.add("hidden");
+}
+
+// --------------------------------------------------------------------
+// 未完了アップロードの確認・再送信
+// --------------------------------------------------------------------
+
+function showPendingConfirm() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("pendingUploadModal");
+    modal.classList.remove("hidden");
+    document.getElementById("pendingRetryBtn").onclick = () => {
+      modal.classList.add("hidden");
+      resolve(true);
+    };
+    document.getElementById("pendingDeleteBtn").onclick = () => {
+      modal.classList.add("hidden");
+      resolve(false);
+    };
+  });
+}
+
+async function checkPendingUploads() {
+  let pendings;
+  try { pendings = await getAllPendingUploads(); } catch (e) { return; }
+  if (pendings.length === 0) return;
+
+  const retry = await showPendingConfirm();
+  if (!retry) {
+    for (const p of pendings) { try { await deletePendingUpload(p.id); } catch (_) {} }
+    return;
+  }
+
+  showUploadOverlay();
+  let successCount = 0;
+  try {
+    for (const p of pendings) {
+      const uploaded = await driveUploadReceipt(p.compressedBlob, p.folderId, p.filename);
+      const link = uploaded.webViewLink || "";
+      await sheetsBatchUpdateValues([{ range: p.receiptRange, values: [[link]] }]);
+      try { await deletePendingUpload(p.id); } catch (_) {}
+      successCount++;
+    }
+    toast(`領収書の再送信が完了しました（${successCount}件）`);
+  } catch (err) {
+    console.error(err);
+    toast("再送信に失敗しました。後でもう一度試してください。", true);
+  } finally {
+    hideUploadOverlay();
+  }
+}
 
 window.addEventListener("load", () => {
   initGoogleAuth();

@@ -309,6 +309,25 @@
   </div>
 </div>
 
+<!-- アップロード中オーバーレイ -->
+<div id="uploadOverlay" class="upload-overlay hidden">
+  <div class="upload-overlay-box">
+    <div class="spinner"></div>
+    <p class="upload-overlay-text">アップロード中です</p>
+    <p class="upload-overlay-sub">完了するまでこの画面を<br>閉じないでください</p>
+  </div>
+</div>
+
+<!-- 未完了アップロード確認モーダル -->
+<div id="pendingUploadModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3 class="modal-title">未完了の送信があります</h3>
+    <p class="modal-desc">前回、完了していない領収書の送信があります。再送信しますか？</p>
+    <button id="pendingRetryBtn" class="primary-btn">再送信する</button>
+    <button id="pendingDeleteBtn" class="cancel-btn">削除する（送信しない）</button>
+  </div>
+</div>
+
 <div id="toast" class="toast hidden"></div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
