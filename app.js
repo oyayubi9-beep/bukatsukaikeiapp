@@ -451,6 +451,7 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
       { range: `'${CONFIG.SHEET_LEDGER}'!A${row}:I${row}`, values: [rowA_I] },
       { range: `'${CONFIG.SHEET_LEDGER}'!L${row}:M${row}`, values: [rowL_M] },
     ]);
+    await copyFormulaFromRowAbove(CONFIG.SHEET_LEDGER, row, SHEET_COLUMNS.ledger.formula);
 
     statusEl.textContent = "記録しました。";
     toast("一般会計に記録しました");
@@ -590,6 +591,7 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
       { range: `'${sheetName}'!A${row}:H${row}`, values: [rowA_H] },
       { range: `'${sheetName}'!K${row}:L${row}`, values: [rowK_L] },
     ]);
+    await copyFormulaFromRowAbove(sheetName, row, SHEET_COLUMNS.special.formula);
 
     statusEl.textContent = "記録しました。";
     toast(`${sheetName}に記録しました`);
@@ -1050,22 +1052,14 @@ function buildClearRanges(sheetRef, rowNum, cols) {
   }));
 }
 
-// 数式列が空になっていたら1つ上の行からCopyPasteで復元する
-async function restoreFormulaColumns(sheetName, rowNum, formulaCols) {
+// 1行上からCopyPaste（PASTE_FORMULA）で数式を相対参照調整しながらコピーする
+async function copyFormulaFromRowAbove(sheetName, rowNum, formulaCols) {
   if (formulaCols.length === 0 || rowNum <= CONFIG.LEDGER_FIRST_ROW) return;
-  const sheetRef = `'${sheetName}'`;
-  const first = formulaCols[0];
-  const last = formulaCols[formulaCols.length - 1];
-  // 計算結果ではなく数式テキストで判定する（計算結果が""でも数式があれば復元不要）
-  const cur = await sheetsGetFormulas(`${sheetRef}!${first}${rowNum}:${last}${rowNum}`);
-  const curRow = cur[0] || [];
-  const needsRestore = formulaCols.some((_, i) => !curRow[i] || String(curRow[i]).trim() === "");
-  if (!needsRestore) return;
   const sheetIds = await getSheetIds();
   const sheetId = sheetIds[sheetName];
   if (sheetId == null) return;
-  const startColIdx = colIndexFromLetter(first);
-  const endColIdx   = colIndexFromLetter(last) + 1;
+  const startColIdx = colIndexFromLetter(formulaCols[0]);
+  const endColIdx   = colIndexFromLetter(formulaCols[formulaCols.length - 1]) + 1;
   const url = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}:batchUpdate`;
   const res = await authedFetch(url, {
     method: "POST",
@@ -1077,7 +1071,31 @@ async function restoreFormulaColumns(sheetName, rowNum, formulaCols) {
       pasteOrientation: "NORMAL",
     }}]}),
   });
-  if (!res.ok) throw new Error("formula restore failed: " + (await res.text()));
+  if (!res.ok) throw new Error("formula copy failed: " + (await res.text()));
+}
+
+// 削除行の数式列に「1行上の値をそのまま返すパススルー式」を書き込む
+// 例: J列に =J5 と書くことで、後続行のバランス計算チェーンが "" で途切れるのを防ぐ
+async function writePassthroughFormulas(sheetRef, rowNum, formulaCols) {
+  if (formulaCols.length === 0 || rowNum <= CONFIG.LEDGER_FIRST_ROW) return;
+  const updates = formulaCols.map(col => ({
+    range: `${sheetRef}!${col}${rowNum}`,
+    values: [[`=${col}${rowNum - 1}`]],
+  }));
+  await sheetsBatchUpdateValues(updates);
+}
+
+// 数式列が完全に空（数式も値もない）になっていたらCopyPasteで復元する安全網
+async function restoreFormulaColumns(sheetName, rowNum, formulaCols) {
+  if (formulaCols.length === 0 || rowNum <= CONFIG.LEDGER_FIRST_ROW) return;
+  const sheetRef = `'${sheetName}'`;
+  const first = formulaCols[0];
+  const last = formulaCols[formulaCols.length - 1];
+  const cur = await sheetsGetFormulas(`${sheetRef}!${first}${rowNum}:${last}${rowNum}`);
+  const curRow = cur[0] || [];
+  const needsRestore = formulaCols.some((_, i) => !curRow[i] || String(curRow[i]).trim() === "");
+  if (!needsRestore) return;
+  await copyFormulaFromRowAbove(sheetName, rowNum, formulaCols);
 }
 
 // 削除
@@ -1087,7 +1105,7 @@ async function deleteRecord(type, sheet, rowNum) {
     const sheetName = type === "ledger" ? CONFIG.SHEET_LEDGER : sheet;
     const cols = SHEET_COLUMNS[type];
     await sheetsBatchUpdateValues(buildClearRanges(`'${sheetName}'`, rowNum, cols.editable));
-    await restoreFormulaColumns(sheetName, rowNum, cols.formula);
+    await writePassthroughFormulas(`'${sheetName}'`, rowNum, cols.formula);
     toast("記録を削除しました");
     await loadEditListData();
   } catch (err) {
