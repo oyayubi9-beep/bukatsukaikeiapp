@@ -5,7 +5,7 @@
 // 【重要】index.html / app.js / config.js などを更新するたびに、
 // このCACHE_NAMEの数字を1つ増やしてください（v2 → v3 など）。
 // 増やさないと、スマホ側で古い内容がキャッシュされ続けて反映されません。
-const CACHE_NAME = "bukatsu-kaikei-v3";
+const CACHE_NAME = "bukatsu-kaikei-v4";
 const SHELL_FILES = [
   "./index.html",
   "./style.css",
