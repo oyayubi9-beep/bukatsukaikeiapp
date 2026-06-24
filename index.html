@@ -26,8 +26,18 @@
   </div>
 </section>
 
+<!-- モード選択画面 -->
+<section id="modeSelectView" class="screen hidden">
+  <div class="mode-select-card">
+    <h2 class="mode-title">モードを選んでください</h2>
+    <button id="modeInputBtn" class="primary-btn">✏️ 入力する</button>
+    <button id="modeEditBtn" class="primary-btn mode-edit-btn">📋 修正・削除する</button>
+  </div>
+</section>
+
 <!-- メイン画面 -->
 <main id="mainView" class="screen hidden">
+  <button id="mainBackBtn" class="back-link">← モード選択へ戻る</button>
 
   <nav class="tabbar">
     <button class="tab-btn active" data-tab="ledger">仕訳入力</button>
@@ -201,6 +211,103 @@
   </section>
 
 </main>
+
+<!-- 修正・削除画面 -->
+<section id="editView" class="screen hidden">
+  <button id="editBackBtn" class="back-link">← モード選択へ戻る</button>
+  <nav class="tabbar">
+    <button class="edit-tab-btn active" data-etab="ledger">仕訳入力</button>
+    <button class="edit-tab-btn" data-etab="special">上位大会</button>
+  </nav>
+  <div id="editSheetSelectRow" class="hidden">
+    <label class="edit-sheet-label">大会を選択
+      <select id="edit_sheet"></select>
+    </label>
+  </div>
+  <p id="editListStatus" class="status-text edit-list-status"></p>
+  <div id="editList"></div>
+</section>
+
+<!-- 詳細修正モーダル -->
+<div id="editDetailModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3 class="modal-title">記録を修正する</h3>
+    <form id="editDetailForm" class="entry-form">
+      <label>日付
+        <input type="date" id="e_date">
+      </label>
+      <label>摘要（内容）
+        <input type="text" id="e_memo">
+      </label>
+      <label id="e_categoryLabel">分類
+        <select id="e_category"></select>
+      </label>
+      <fieldset class="money-fieldset">
+        <legend>収入・支出・振替</legend>
+        <div class="seg-control" id="e_kind">
+          <button type="button" class="seg-btn active" data-kind="income">収入</button>
+          <button type="button" class="seg-btn" data-kind="expense">支出</button>
+          <button type="button" class="seg-btn" data-kind="transfer">振替</button>
+        </div>
+        <div id="e_incomeBlock">
+          <label>収入科目
+            <select id="e_incomeAccount"></select>
+          </label>
+          <label>収入金額（円）
+            <input type="number" id="e_incomeAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+        <div id="e_expenseBlock" class="hidden">
+          <label>支出科目
+            <select id="e_expenseAccount"></select>
+          </label>
+          <label>支出金額（円）
+            <input type="number" id="e_expenseAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+        <div id="e_transferBlock" class="hidden">
+          <label>振替方向
+            <select id="e_transferDir">
+              <option value="現金→口座">現金 → 口座</option>
+              <option value="口座→現金">口座 → 現金</option>
+            </select>
+          </label>
+          <label>振替金額（円）
+            <input type="number" id="e_transferAmount" min="0" inputmode="numeric">
+          </label>
+        </div>
+      </fieldset>
+      <label id="e_payLabel">支払手段
+        <select id="e_payment"></select>
+      </label>
+      <label>領収書（差し替える場合のみ）
+        <input type="file" id="e_receipt" accept="image/*" capture="environment">
+        <span id="e_receiptName" class="file-hint"></span>
+      </label>
+      <label>備考（任意）
+        <input type="text" id="e_note">
+      </label>
+      <p id="e_status" class="status-text"></p>
+      <button type="submit" class="primary-btn">保存する</button>
+      <button type="button" id="editDetailClose" class="cancel-btn">キャンセル</button>
+    </form>
+  </div>
+</div>
+
+<!-- 領収書差し替えモーダル -->
+<div id="receiptReplaceModal" class="modal-overlay hidden">
+  <div class="modal-card">
+    <h3 class="modal-title">領収書を差し替える</h3>
+    <p class="modal-desc">新しい領収書を撮影またはファイルを選択してください。</p>
+    <label>
+      <input type="file" id="rr_receipt" accept="image/*" capture="environment">
+      <span id="rr_receiptName" class="file-hint"></span>
+    </label>
+    <p id="rr_status" class="status-text"></p>
+    <button id="rr_uploadBtn" class="primary-btn" style="margin-top:12px">アップロードして更新</button>
+    <button id="rr_cancelBtn" class="cancel-btn">キャンセル</button>
+  </div>
+</div>
 
 <div id="toast" class="toast hidden"></div>
 

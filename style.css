@@ -206,3 +206,161 @@ input:focus, select:focus{
 @media (min-width:600px){
   .topbar h1{font-size:19px;}
 }
+
+/* モード選択 */
+.mode-select-card{
+  margin-top:14vh;
+  display:flex;
+  flex-direction:column;
+  gap:14px;
+}
+.mode-title{
+  font-size:18px;
+  font-weight:700;
+  text-align:center;
+  margin:0 0 6px;
+  color:var(--ink);
+}
+.mode-edit-btn{
+  background:var(--gold);
+}
+.mode-edit-btn:active{background:#9a7030;}
+
+/* 戻るボタン */
+.back-link{
+  background:none;
+  border:none;
+  color:var(--navy);
+  font-size:14px;
+  font-weight:600;
+  padding:0 0 14px;
+  cursor:pointer;
+  display:block;
+  text-align:left;
+}
+
+/* 修正画面 大会選択 */
+.edit-sheet-label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:13px;
+  font-weight:600;
+  color:#4a443a;
+  margin-bottom:14px;
+}
+.edit-list-status{
+  margin-bottom:10px;
+}
+
+/* 修正一覧カード */
+.edit-card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:14px;
+  margin-bottom:10px;
+}
+.edit-card-info{
+  margin-bottom:10px;
+}
+.edit-card-date{
+  font-size:12px;
+  color:#8a8070;
+}
+.edit-card-memo{
+  font-size:15px;
+  font-weight:600;
+  margin:2px 0;
+  color:var(--ink);
+}
+.edit-card-amount{
+  font-size:14px;
+  color:#4a443a;
+  margin-top:2px;
+}
+.edit-card-receipt{
+  font-size:12px;
+  color:var(--gold);
+  margin-top:2px;
+}
+.edit-card-btns{
+  display:flex;
+  gap:6px;
+}
+.edit-card-btn{
+  flex:1;
+  padding:9px 4px;
+  font-size:11px;
+  font-weight:600;
+  border-radius:8px;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--ink);
+  cursor:pointer;
+  font-family:inherit;
+}
+.edit-card-btn.delete-btn{
+  color:var(--danger);
+  border-color:var(--danger);
+}
+.edit-card-btn:active{opacity:.7;}
+
+/* タブ（修正画面用） */
+.edit-tab-btn{
+  flex:1;
+  border:none;
+  background:transparent;
+  padding:10px 4px;
+  border-radius:999px;
+  font-size:13px;
+  font-weight:600;
+  color:#7a7163;
+  cursor:pointer;
+}
+.edit-tab-btn.active{
+  background:var(--navy);
+  color:#fff;
+}
+
+/* モーダルオーバーレイ */
+.modal-overlay{
+  position:fixed;
+  inset:0;
+  background:rgba(0,0,0,.5);
+  z-index:100;
+  overflow-y:auto;
+  padding:20px 16px 40px;
+}
+.modal-card{
+  background:var(--paper);
+  border-radius:var(--radius);
+  max-width:480px;
+  margin:0 auto;
+  padding:20px 16px;
+}
+.modal-title{
+  font-size:16px;
+  font-weight:700;
+  margin:0 0 16px;
+  color:var(--ink);
+}
+.modal-desc{
+  font-size:13px;
+  color:#5a5247;
+  margin:0 0 14px;
+}
+.cancel-btn{
+  display:block;
+  width:100%;
+  background:transparent;
+  color:#5a5247;
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  padding:13px 18px;
+  font-size:15px;
+  font-weight:600;
+  cursor:pointer;
+  margin-top:8px;
+  font-family:inherit;
+}
