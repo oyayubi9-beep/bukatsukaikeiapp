@@ -48,11 +48,13 @@ function signOut() {
   });
   document.getElementById("loginView").classList.remove("hidden");
   document.getElementById("signoutBtn").classList.add("hidden");
+  document.getElementById("updateBtn").classList.add("hidden");
 }
 
 async function onSignedIn() {
   document.getElementById("loginView").classList.add("hidden");
   document.getElementById("signoutBtn").classList.remove("hidden");
+  document.getElementById("updateBtn").classList.remove("hidden");
   toast("読み込み中…");
   try {
     await Promise.all([loadMasterData(), loadRosterData(), loadSpecialSheetNames()]);
@@ -1285,9 +1287,27 @@ async function checkPendingUploads() {
   }
 }
 
+let swRegistration = null;
+
+async function updateApp() {
+  if (!swRegistration) { location.reload(); return; }
+  let found = false;
+  swRegistration.addEventListener("updatefound", () => { found = true; }, { once: true });
+  await swRegistration.update();
+  setTimeout(() => { if (!found) toast("最新版です"); }, 1500);
+}
+
 window.addEventListener("load", () => {
   initGoogleAuth();
   if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {});
+    navigator.serviceWorker.register("service-worker.js")
+      .then((reg) => {
+        swRegistration = reg;
+      })
+      .catch(() => {});
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      location.reload();
+    });
   }
+  document.getElementById("updateBtn").addEventListener("click", updateApp);
 });

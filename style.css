@@ -41,6 +41,8 @@ body{
   letter-spacing:.02em;
 }
 
+.topbar-actions{display:flex;gap:8px;}
+
 .ghost-btn{
   background:transparent;
   border:1px solid rgba(255,255,255,.4);
