@@ -798,7 +798,7 @@ function renderEditList(items) {
 }
 
 function fmtAmt(val) {
-  const n = parseFloat(String(val || "").replace(/,/g, ""));
+  const n = parseFloat(String(val || "").replace(/[¥￥,]/g, ""));
   return isNaN(n) ? String(val) : n.toLocaleString("ja-JP");
 }
 
