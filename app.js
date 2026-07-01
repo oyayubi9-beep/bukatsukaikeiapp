@@ -320,6 +320,7 @@ function setDefaultDates() {
   const today = new Date().toISOString().slice(0, 10);
   document.getElementById("l_date").value = today;
   document.getElementById("s_date").value = today;
+  document.getElementById("d_date").value = today;
 }
 
 // --------------------------------------------------------------------
@@ -495,6 +496,12 @@ document.getElementById("duesForm").addEventListener("submit", async (e) => {
       return;
     }
 
+    const date = document.getElementById("d_date").value;
+    if (!date) {
+      statusEl.textContent = "入金日を入力してください。";
+      return;
+    }
+
     const member = rosterData.find((r) => r.name === memberName);
     if (!member) {
       statusEl.textContent = "部員データが見つかりませんでした。";
@@ -503,11 +510,30 @@ document.getElementById("duesForm").addEventListener("submit", async (e) => {
     // 部費入金管理シートの行 = 名簿の行 - 1（DUES_FIRST_ROW=4が名簿の5行目に対応）
     const duesRow = member.row - 1;
     const monthIndex = CONFIG.DUES_MONTH_COLUMNS.indexOf(month);
-    const colLetter = colLetterFromIndex(colIndexFromLetter(CONFIG.DUES_MONTH_START_COL) + monthIndex);
+    const colIdx = colIndexFromLetter(CONFIG.DUES_MONTH_START_COL) + monthIndex;
+    const colLetter = colLetterFromIndex(colIdx);
 
     await sheetsBatchUpdateValues([
       { range: `'${CONFIG.SHEET_DUES}'!${colLetter}${duesRow}`, values: [[status]] },
     ]);
+
+    // 入金日をセルのメモとして記録
+    const [y, m, d] = date.split("-").map(Number);
+    const noteText = `${y}年${m}月${d}日`;
+    const sheetIds = await getSheetIds();
+    const sheetId = sheetIds[CONFIG.SHEET_DUES];
+    if (sheetId != null) {
+      const noteUrl = `${SHEETS_BASE}/${CONFIG.SPREADSHEET_ID}:batchUpdate`;
+      await authedFetch(noteUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requests: [{ updateCells: {
+          rows: [{ values: [{ note: noteText }] }],
+          fields: "note",
+          start: { sheetId, rowIndex: duesRow - 1, columnIndex: colIdx },
+        }}]}),
+      });
+    }
 
     statusEl.textContent = "記録しました。";
     toast(`${memberName}さん ${month} を記録しました`);
