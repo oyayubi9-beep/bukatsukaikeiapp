@@ -403,3 +403,48 @@ input:focus, select:focus{
   margin:0;
   line-height:1.7;
 }
+
+/* 領収書ピッカー */
+.receipt-picker-wrap{display:flex;align-items:center;gap:10px;}
+.receipt-picker-btn{
+  flex:none;
+  padding:10px 16px;
+  font-size:14px;
+  font-weight:600;
+  background:var(--gold-soft);
+  border:1px solid var(--gold);
+  border-radius:10px;
+  color:var(--navy-dark);
+  cursor:pointer;
+  font-family:inherit;
+}
+.receipt-picker-btn:active{opacity:.75;}
+
+/* 領収書アクションシート */
+.receipt-action-sheet{
+  position:fixed;
+  z-index:200;
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:var(--radius);
+  box-shadow:0 8px 24px rgba(0,0,0,.18);
+  overflow:hidden;
+  min-width:200px;
+}
+.ras-btn{
+  display:block;
+  width:100%;
+  padding:14px 18px;
+  font-size:15px;
+  font-weight:600;
+  text-align:left;
+  background:transparent;
+  border:none;
+  border-bottom:1px solid var(--line);
+  color:var(--ink);
+  cursor:pointer;
+  font-family:inherit;
+}
+.ras-btn:last-child{border-bottom:none;}
+.ras-btn:active{background:var(--gold-soft);}
+.ras-cancel{color:#8a8070;font-weight:400;}

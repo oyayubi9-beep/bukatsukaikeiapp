@@ -107,8 +107,12 @@
       </label>
 
       <label>領収書（任意）
-        <input type="file" id="l_receipt" accept="image/*" capture="environment">
-        <span id="l_receiptName" class="file-hint"></span>
+        <div class="receipt-picker-wrap">
+          <button type="button" class="receipt-picker-btn" data-prefix="l">📷 領収書を追加</button>
+          <span id="l_receiptName" class="file-hint"></span>
+        </div>
+        <input type="file" id="l_receipt_camera" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="l_receipt_folder" accept="image/*" class="hidden">
       </label>
 
       <label>備考（任意）
@@ -203,8 +207,12 @@
       </label>
 
       <label>領収書（任意）
-        <input type="file" id="s_receipt" accept="image/*" capture="environment">
-        <span id="s_receiptName" class="file-hint"></span>
+        <div class="receipt-picker-wrap">
+          <button type="button" class="receipt-picker-btn" data-prefix="s">📷 領収書を追加</button>
+          <span id="s_receiptName" class="file-hint"></span>
+        </div>
+        <input type="file" id="s_receipt_camera" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="s_receipt_folder" accept="image/*" class="hidden">
       </label>
 
       <label>備考（任意）
@@ -287,8 +295,12 @@
         <select id="e_payment"></select>
       </label>
       <label>領収書（差し替える場合のみ）
-        <input type="file" id="e_receipt" accept="image/*" capture="environment">
-        <span id="e_receiptName" class="file-hint"></span>
+        <div class="receipt-picker-wrap">
+          <button type="button" class="receipt-picker-btn" data-prefix="e">📷 領収書を追加</button>
+          <span id="e_receiptName" class="file-hint"></span>
+        </div>
+        <input type="file" id="e_receipt_camera" accept="image/*" capture="environment" class="hidden">
+        <input type="file" id="e_receipt_folder" accept="image/*" class="hidden">
       </label>
       <label>備考（任意）
         <input type="text" id="e_note">
@@ -305,10 +317,12 @@
   <div class="modal-card">
     <h3 class="modal-title">領収書を差し替える</h3>
     <p class="modal-desc">新しい領収書を撮影またはファイルを選択してください。</p>
-    <label>
-      <input type="file" id="rr_receipt" accept="image/*" capture="environment">
+    <div class="receipt-picker-wrap">
+      <button type="button" class="receipt-picker-btn" data-prefix="rr">📷 領収書を選ぶ</button>
       <span id="rr_receiptName" class="file-hint"></span>
-    </label>
+    </div>
+    <input type="file" id="rr_receipt_camera" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="rr_receipt_folder" accept="image/*" class="hidden">
     <p id="rr_status" class="status-text"></p>
     <button id="rr_uploadBtn" class="primary-btn" style="margin-top:12px">アップロードして更新</button>
     <button id="rr_cancelBtn" class="cancel-btn">キャンセル</button>
@@ -335,6 +349,13 @@
 </div>
 
 <div id="toast" class="toast hidden"></div>
+
+<!-- 領収書選択アクションシート -->
+<div id="receiptActionSheet" class="receipt-action-sheet hidden">
+  <button type="button" id="ras_camera" class="ras-btn">📷 今すぐ撮影する</button>
+  <button type="button" id="ras_folder" class="ras-btn">🖼 フォルダから選ぶ</button>
+  <button type="button" id="ras_cancel" class="ras-btn ras-cancel">キャンセル</button>
+</div>
 
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script src="config.js"></script>

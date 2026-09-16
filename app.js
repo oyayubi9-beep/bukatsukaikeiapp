@@ -10,6 +10,7 @@ let accessToken = null;
 let tokenClient = null;
 
 let masterData = { categories: [], incomeAccounts: [], expenseAccounts: [], paymentMethods: [] };
+const selectedReceiptFiles = { l: null, s: null, e: null, rr: null };
 let rosterData = []; // [{name, row}]
 let specialSheetNames = [];
 let sheetIdCache = null;
@@ -376,14 +377,81 @@ function getActiveDuesStatus() {
   return active ? active.dataset.status : "○";
 }
 
-document.getElementById("l_receipt").addEventListener("change", (e) => {
-  const f = e.target.files[0];
-  document.getElementById("l_receiptName").textContent = f ? f.name : "";
+// --------------------------------------------------------------------
+// 領収書選択アクションシート
+// --------------------------------------------------------------------
+
+let rasPrefix = null;
+
+function openReceiptActionSheet(prefix, triggerBtn) {
+  rasPrefix = prefix;
+  const sheet = document.getElementById("receiptActionSheet");
+  const rect = triggerBtn.getBoundingClientRect();
+  const sheetW = 220;
+  let left = rect.left;
+  if (left + sheetW > window.innerWidth - 8) left = window.innerWidth - sheetW - 8;
+  if (left < 8) left = 8;
+  sheet.style.top = (rect.bottom + 6) + "px";
+  sheet.style.left = left + "px";
+  sheet.classList.remove("hidden");
+}
+
+function closeReceiptActionSheet() {
+  document.getElementById("receiptActionSheet").classList.add("hidden");
+  rasPrefix = null;
+}
+
+document.querySelectorAll(".receipt-picker-btn").forEach((btn) => {
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const prefix = btn.dataset.prefix;
+    const sheet = document.getElementById("receiptActionSheet");
+    if (!sheet.classList.contains("hidden") && rasPrefix === prefix) {
+      closeReceiptActionSheet();
+      return;
+    }
+    openReceiptActionSheet(prefix, btn);
+  });
 });
 
-document.getElementById("s_receipt").addEventListener("change", (e) => {
-  const f = e.target.files[0];
-  document.getElementById("s_receiptName").textContent = f ? f.name : "";
+document.getElementById("ras_camera").addEventListener("click", () => {
+  const p = rasPrefix;
+  closeReceiptActionSheet();
+  if (p) document.getElementById(p + "_receipt_camera").click();
+});
+
+document.getElementById("ras_folder").addEventListener("click", () => {
+  const p = rasPrefix;
+  closeReceiptActionSheet();
+  if (p) document.getElementById(p + "_receipt_folder").click();
+});
+
+document.getElementById("ras_cancel").addEventListener("click", () => {
+  closeReceiptActionSheet();
+});
+
+document.getElementById("receiptActionSheet").addEventListener("click", (e) => {
+  e.stopPropagation();
+});
+
+document.addEventListener("click", () => {
+  if (!document.getElementById("receiptActionSheet").classList.contains("hidden")) {
+    closeReceiptActionSheet();
+  }
+});
+
+["l", "s", "e", "rr"].forEach((p) => {
+  ["camera", "folder"].forEach((mode) => {
+    const input = document.getElementById(`${p}_receipt_${mode}`);
+    if (!input) return;
+    input.addEventListener("change", (ev) => {
+      const f = ev.target.files[0];
+      if (f) {
+        selectedReceiptFiles[p] = f;
+        document.getElementById(`${p}_receiptName`).textContent = f.name;
+      }
+    });
+  });
 });
 
 // --------------------------------------------------------------------
@@ -434,7 +502,7 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
 
     // 領収書アップロード（任意）
     let receiptLink = "";
-    const file = document.getElementById("l_receipt").files[0];
+    const file = selectedReceiptFiles.l;
     if (file) {
       statusEl.textContent = "領収書をアップロード中…";
       const yyyyMM = date.slice(0, 7);
@@ -468,6 +536,7 @@ document.getElementById("ledgerForm").addEventListener("submit", async (e) => {
     document.getElementById("ledgerForm").reset();
     setDefaultDates();
     document.getElementById("l_receiptName").textContent = "";
+    selectedReceiptFiles.l = null;
   } catch (err) {
     console.error(err);
     statusEl.textContent = "エラーが発生しました。もう一度お試しください。";
@@ -606,7 +675,7 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
 
     // 領収書アップロード（任意）
     let receiptLink = "";
-    const file = document.getElementById("s_receipt").files[0];
+    const file = selectedReceiptFiles.s;
     if (file) {
       statusEl.textContent = "領収書をアップロード中…";
       const yyyyMM = date.slice(0, 7);
@@ -641,6 +710,7 @@ document.getElementById("specialForm").addEventListener("submit", async (e) => {
     document.getElementById("specialForm").reset();
     setDefaultDates();
     document.getElementById("s_receiptName").textContent = "";
+    selectedReceiptFiles.s = null;
   } catch (err) {
     console.error(err);
     statusEl.textContent = "エラーが発生しました。もう一度お試しください。";
@@ -848,20 +918,17 @@ function openReceiptReplace(type, sheet, rowNum) {
   const modal = document.getElementById("receiptReplaceModal");
   modal.dataset.date = item ? (item.row[0] || "") : "";
 
-  document.getElementById("rr_receipt").value = "";
+  document.getElementById("rr_receipt_camera").value = "";
+  document.getElementById("rr_receipt_folder").value = "";
+  selectedReceiptFiles.rr = null;
   document.getElementById("rr_receiptName").textContent = "";
   document.getElementById("rr_status").textContent = "";
   modal.classList.remove("hidden");
 }
 
-document.getElementById("rr_receipt").addEventListener("change", (e) => {
-  const f = e.target.files[0];
-  document.getElementById("rr_receiptName").textContent = f ? f.name : "";
-});
-
 document.getElementById("rr_uploadBtn").addEventListener("click", async () => {
   const statusEl = document.getElementById("rr_status");
-  const file = document.getElementById("rr_receipt").files[0];
+  const file = selectedReceiptFiles.rr;
   if (!file) {
     statusEl.textContent = "ファイルを選択してください。";
     return;
@@ -889,6 +956,7 @@ document.getElementById("rr_uploadBtn").addEventListener("click", async () => {
     await sheetsBatchUpdateValues([{ range: receiptRange, values: [[receiptLink]] }]);
     if (pendingId != null) { try { await deletePendingUpload(pendingId); } catch (_) {} }
 
+    selectedReceiptFiles.rr = null;
     toast("領収書を更新しました");
     document.getElementById("receiptReplaceModal").classList.add("hidden");
     await loadEditListData();
@@ -928,7 +996,9 @@ function openDetailEdit(type, sheet, rowNum) {
 
   document.getElementById("e_date").value = row[0] || "";
   document.getElementById("e_memo").value = row[1] || "";
-  document.getElementById("e_receipt").value = "";
+  document.getElementById("e_receipt_camera").value = "";
+  document.getElementById("e_receipt_folder").value = "";
+  selectedReceiptFiles.e = null;
   document.getElementById("e_receiptName").textContent = "";
   document.getElementById("e_status").textContent = "";
 
@@ -988,11 +1058,6 @@ function openDetailEdit(type, sheet, rowNum) {
   document.getElementById("editDetailModal").classList.remove("hidden");
 }
 
-document.getElementById("e_receipt").addEventListener("change", (e) => {
-  const f = e.target.files[0];
-  document.getElementById("e_receiptName").textContent = f ? f.name : "";
-});
-
 document.getElementById("editDetailClose").addEventListener("click", () => {
   document.getElementById("editDetailModal").classList.add("hidden");
 });
@@ -1040,7 +1105,7 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
     }
 
     let receiptLink = editTargetReceiptLink;
-    const file = document.getElementById("e_receipt").files[0];
+    const file = selectedReceiptFiles.e;
     if (file) {
       statusEl.textContent = "領収書をアップロード中…";
       const yyyyMM = date.slice(0, 7);
@@ -1080,6 +1145,7 @@ document.getElementById("editDetailForm").addEventListener("submit", async (e) =
 
     statusEl.textContent = "保存しました。";
     toast("修正しました");
+    selectedReceiptFiles.e = null;
     document.getElementById("editDetailModal").classList.add("hidden");
     await loadEditListData();
   } catch (err) {
